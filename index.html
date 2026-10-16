@@ -1,0 +1,969 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}html,body{height:100%}</style></head><body><title>Snowboard Edge Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-screen lab — 3D stage on the left with instrument overlays, control rack on the right; stacks on phones */
+:root{
+  --bg:#EEF2F5; --panel:#FFFFFF; --sunk:#F5F8FA; --fg:#14202B; --muted:#5A6A78; --line:#D5DDE4;
+  --accent:#1D5BD8; --accent-ink:#FFFFFF; --skid:#D9650B; --danger:#C62839; --glide:#7E8C98;
+  --glass:rgba(255,255,255,.86);
+  --f-display:"Chakra Petch","IBM Plex Sans Thai",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D141A; --panel:#141D25; --sunk:#10181F; --fg:#E4ECF2; --muted:#8C9BA8; --line:#26333E;
+  --accent:#6B95FF; --accent-ink:#0B1220; --skid:#FF9442; --danger:#FF5C6C; --glide:#8C9BA8; --glass:rgba(16,24,31,.84); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141A; --panel:#141D25; --sunk:#10181F; --fg:#E4ECF2; --muted:#8C9BA8; --line:#26333E;
+  --accent:#6B95FF; --accent-ink:#0B1220; --skid:#FF9442; --danger:#FF5C6C; --glide:#8C9BA8; --glass:rgba(16,24,31,.84); color-scheme:dark}
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5}
+*{box-sizing:border-box}
+.app{height:100%;display:grid;grid-template-columns:minmax(0,1fr) 348px;gap:14px;
+  padding-block:14px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stage{position:relative;min-width:0;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#cfdde8}
+#gl{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#gl:active{cursor:grabbing}
+
+/* overlays */
+.ov{position:absolute;background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px}
+.hud{top:12px;left:12px;padding:10px 12px;width:258px;display:grid;gap:8px}
+.state{display:flex;align-items:center;gap:8px;font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+.state i{width:12px;height:12px;border-radius:3px;background:var(--glide);flex:none}
+.state[data-s="carve"] i{background:var(--accent)} .state[data-s="carve"]{color:var(--accent)}
+.state[data-s="skid"] i{background:var(--skid)} .state[data-s="skid"]{color:var(--skid)}
+.state[data-s="catch"] i{background:var(--danger)} .state[data-s="catch"]{color:var(--danger)}
+.state small{font-family:var(--f-body);font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.stat span{display:block;font-size:11px;color:var(--muted);letter-spacing:.02em}
+.stat b{font-family:var(--f-mono);font-weight:500;font-size:16px;font-variant-numeric:tabular-nums}
+.stat b em{font-style:normal;font-size:11px;color:var(--muted);margin-left:2px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar>div{height:100%;width:0;background:var(--accent);transition:background .2s}
+.barlbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.barlbl b{font-family:var(--f-mono);font-weight:500;color:var(--fg)}
+.gauge{position:relative;height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.gauge .tol{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 28%,transparent)}
+.gauge i{position:absolute;top:-1px;width:4px;height:12px;margin-left:-2px;border-radius:2px;background:var(--fg)}
+.gends{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:1px}
+
+.tools{top:12px;right:12px;padding:4px;display:flex;gap:4px}
+.cams{bottom:12px;right:12px;padding:4px;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 24px)}
+.tb{font:500 12px var(--f-body);color:var(--fg);background:transparent;border:0;border-radius:7px;padding:6px 10px;cursor:pointer;white-space:nowrap}
+.tb:hover{background:var(--sunk)}
+.tb[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.tb:focus-visible,.seg button:focus-visible,input:focus-visible,select:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.prof{left:12px;bottom:12px;padding:8px 10px 6px;width:320px}
+.prof canvas{display:block;width:100%;height:178px}
+
+.legend{position:absolute;left:284px;top:12px;padding:8px 10px;display:grid;gap:3px;font-size:11px;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+
+/* panel */
+.panel{min-width:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 16px 20px;display:flex;flex-direction:column;gap:18px}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.02em;margin:0;line-height:1.15;text-wrap:balance}
+.brand p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.formula{margin-top:8px;font-family:var(--f-mono);font-size:12px;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--fg)}
+section h2{font-family:var(--f-display);font-weight:600;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;background:var(--sunk);border:1px solid var(--line);border-radius:9px}
+.seg.s3{grid-template-columns:repeat(3,1fr)}
+.seg button{font:600 12px var(--f-display);letter-spacing:.03em;color:var(--fg);background:transparent;border:0;border-radius:6px;padding:7px 2px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--panel);color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.desc{font-size:13px;color:var(--muted);margin:8px 0 0;min-height:3em}
+.traits{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.trait span{font-size:11px;color:var(--muted)}
+.trait .meter{height:4px;border-radius:2px;background:var(--line);margin-top:3px;overflow:hidden}
+.trait .meter div{height:100%;background:var(--accent)}
+
+.ctl{display:grid;gap:3px;margin-top:10px}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.ctl label.pinned::after{content:"ปักค่าไว้";margin-left:auto;margin-right:6px;font-size:10px;font-weight:600;color:var(--skid);letter-spacing:.04em}
+.ctl label.pinned{color:var(--fg)}
+.ctl label output{font-family:var(--f-mono);font-size:12px;color:var(--fg);font-variant-numeric:tabular-nums}
+.ctl .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chip{font:500 12px var(--f-body);color:var(--fg);background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--sunk);border:1px solid var(--line);border-radius:9px}
+.switch label{font-weight:600;font-size:13px}
+.switch input{width:18px;height:18px;accent-color:var(--accent)}
+select{font:500 13px var(--f-body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0}
+.checks{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.checks label{display:flex;gap:7px;align-items:center;font-size:13px;cursor:pointer}
+.checks input{accent-color:var(--accent);width:16px;height:16px}
+kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--sunk)}
+
+/* phone play mode */
+.play-only{display:none}
+body.play .play-only{display:inline-block}
+body.play .panel{display:none}
+body.play .app{display:block;padding:0;height:100%}
+body.play .stage{position:fixed;inset:0;border-radius:0;border:0;height:auto;min-height:0;z-index:20}
+body.play .legend,body.play .prof,body.play #bGyro{display:none}
+body.play .hud{left:calc(88px + env(safe-area-inset-left,0px));top:calc(8px + env(safe-area-inset-top,0px));width:210px;padding:7px 9px;gap:5px}
+body.play .stats .stat:nth-child(n+3){display:none}
+body.play .tools{top:calc(8px + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px))}
+body.play .cams{bottom:calc(8px + env(safe-area-inset-bottom,0px));right:calc(8px + env(safe-area-inset-right,0px))}
+.knee-strip{position:absolute;display:none;left:calc(12px + env(safe-area-inset-left,0px));top:16%;bottom:12%;width:64px;border-radius:32px;background:var(--glass);border:1px solid var(--line);touch-action:none;z-index:5;-webkit-user-select:none;user-select:none}
+body.play .knee-strip{display:block}
+.knee-strip i{position:absolute;left:7px;right:7px;height:48px;border-radius:24px;background:var(--accent);opacity:.9;top:0}
+.knee-strip span{position:absolute;left:0;right:0;top:-20px;text-align:center;font:600 11px var(--f-body);color:var(--fg)}
+.knee-strip b{position:absolute;left:0;right:0;font:500 10px var(--f-body);color:var(--muted);text-align:center}
+.toast{left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 16px;width:min(440px,86%);font-size:13px;z-index:30;display:grid;gap:10px}
+.toast p{margin:0}
+.gyro-live{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+@media (max-width: 880px){
+  .app{display:flex;flex-direction:column;height:auto;min-height:100%}
+  .stage{height:62vh;min-height:380px;flex:none}
+  .panel{overflow:visible}
+  .hud{width:200px;padding:8px 10px;gap:6px}
+  .state{font-size:16px}
+  .stat b{font-size:14px}
+  .legend{display:none}
+  .prof{width:236px;bottom:56px}
+  .prof canvas{height:132px}
+}
+@media (max-width: 460px){
+  .prof{display:none}
+  .hud{width:172px}
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+
+<div class="app">
+  <section class="stage" id="stage" aria-label="ฉากจำลอง 3 มิติ">
+    <canvas id="gl"></canvas>
+
+    <div class="ov hud" id="hud">
+      <div class="state" id="state" data-s="carve"><i></i><div>Carving<br><small id="stateSub">edge ตัดเป็นร่องบาง</small></div></div>
+      <div class="stats">
+        <div class="stat"><span>ความเร็ว</span><b id="hSpeed">0<em>km/h</em></b></div>
+        <div class="stat"><span>มุม edge</span><b id="hEdge">0<em>°</em></b></div>
+        <div class="stat"><span>รัศมีโค้งจริง</span><b id="hRad">–<em>m</em></b></div>
+        <div class="stat"><span>Slip angle</span><b id="hSlip">0<em>°</em></b></div>
+        <div class="stat"><span>เอนที่สมดุล</span><b id="hIdeal">0<em>°</em></b></div>
+        <div class="stat"><span>เอนจริง</span><b id="hLean">0<em>°</em></b></div>
+      </div>
+      <div>
+        <div class="barlbl"><span>แรงยึด edge ที่ใช้ไป</span><b id="hGrip">0%</b></div>
+        <div class="bar"><div id="gripBar"></div></div>
+      </div>
+      <div>
+        <div class="barlbl"><span>สมดุลการเอน (เอนจริง − ที่ต้องใช้)</span><b id="hBal">0°</b></div>
+        <div class="gauge"><span class="tol" id="gTol"></span><i id="gMark"></i></div>
+        <div class="gends"><span>← เอนน้อยไป ถูกเหวี่ยงออก</span><span>เอนมากไป ล้มเข้า →</span></div>
+      </div>
+      <div id="riskWrap">
+        <div class="barlbl"><span>เสี่ยง catch edge</span><b id="hRisk">0%</b></div>
+        <div class="bar"><div id="riskBar" style="background:var(--danger)"></div></div>
+      </div>
+    </div>
+
+    <div class="ov legend" id="legend">
+      <div><i style="background:#1D5BD8"></i>ความเร็ว</div>
+      <div><i style="background:#D9650B"></i>แรงที่ edge ยึดหิมะ</div>
+      <div><i style="background:#7E8C98"></i>แรงโน้มถ่วงตามลาด</div>
+    </div>
+
+    <div class="ov tools">
+      <button class="tb" id="bPause" aria-pressed="false" title="Space">หยุด</button>
+      <button class="tb" id="bSlow" aria-pressed="false">Slow-mo</button>
+      <button class="tb" id="bReset" title="R">เริ่มใหม่</button>
+      <button class="tb" id="bGyro">โหมดโทรศัพท์</button>
+      <button class="tb play-only" id="bCal">ตั้งศูนย์</button>
+      <button class="tb play-only" id="bExit">ออก</button>
+    </div>
+
+    <div class="ov cams" id="cams" role="group" aria-label="มุมกล้อง">
+      <button class="tb" data-cam="chase" aria-pressed="true">ตามหลัง</button>
+      <button class="tb" data-cam="side" aria-pressed="false">ด้านข้าง</button>
+      <button class="tb" data-cam="front" aria-pressed="false">ด้านหน้า</button>
+      <button class="tb" data-cam="top" aria-pressed="false">ด้านบน</button>
+      <button class="tb" data-cam="follow" aria-pressed="false">หมุนอิสระ</button>
+    </div>
+
+    <div class="ov prof" id="profPanel"><canvas id="pc"></canvas></div>
+    <div class="knee-strip" id="kneeStrip" role="slider" aria-label="งอเข่า" aria-valuemin="0" aria-valuemax="100"><span>งอเข่า</span><b style="top:6px">ยืด</b><b style="bottom:6px">ย่อ</b><i id="kneeThumb"></i></div>
+    <div class="ov toast" id="toast" hidden><p id="toastMsg"></p><div class="row"><button class="chip" id="toastOk">ตกลง</button></div></div>
+  </section>
+
+  <aside class="panel">
+    <div class="brand">
+      <h1>Snowboard Edge Lab</h1>
+      <p>บอร์ดแต่ละ profile ตอบสนองต่อท่าทางผู้ขี่อย่างไร carve หรือ slide ตัดสินจากแรงยึดของ edge เทียบกับแรงที่โค้งต้องการ</p>
+      <div class="formula">R = R<sub>sidecut</sub> × cos(มุม edge)<br>carve เมื่อ m·v²/R ≤ แรงยึด edge</div>
+    </div>
+
+    <section>
+      <h2>Profile บอร์ด</h2>
+      <div class="seg" role="group" aria-label="profile">
+        <button data-k="profile" data-v="camber" aria-pressed="true">CAMBER</button>
+        <button data-k="profile" data-v="rocker" aria-pressed="false">ROCKER</button>
+        <button data-k="profile" data-v="flat" aria-pressed="false">FLAT</button>
+        <button data-k="profile" data-v="hybrid" aria-pressed="false">HYBRID</button>
+      </div>
+      <p class="desc" id="profDesc"></p>
+      <div class="traits">
+        <div class="trait"><span>จับ edge</span><div class="meter"><div id="tHold"></div></div></div>
+        <div class="trait"><span>หมุนง่าย</span><div class="meter"><div id="tPivot"></div></div></div>
+        <div class="trait"><span>edge สัมผัส</span><div class="meter"><div id="tContact"></div></div></div>
+        <div class="trait"><span>เสี่ยงจิก</span><div class="meter"><div id="tCatch" style="background:var(--danger)"></div></div></div>
+      </div>
+      <div class="ctl">
+        <label for="sSidecut">รัศมี sidecut <output id="oSidecut"></output></label>
+        <input type="range" id="sSidecut" data-k="sidecut" min="6.5" max="11" step="0.1" value="7.8">
+        <div class="ends"><span>เลี้ยวแคบ</span><span>เลี้ยวกว้าง</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>ท่าทางผู้ขี่</h2>
+      <div class="switch">
+        <label for="cAuto">ผู้ขี่อัตโนมัติ</label>
+        <div class="row">
+          <select id="selStyle" aria-label="สไตล์การเลี้ยว">
+            <option value="carve">Carve</option>
+            <option value="skid">Skid</option>
+            <option value="mixed">ผสม</option>
+            <option value="beginner">มือใหม่ (catch edge บ่อย)</option>
+          </select>
+          <input type="checkbox" id="cAuto" checked>
+        </div>
+      </div>
+      <div class="ctl">
+        <label for="sWidth">ความกว้างของโค้ง (มุมหัวบอร์ดสูงสุด) <output id="oWidth"></output></label>
+        <input type="range" id="sWidth" data-k="width" min="25" max="85" step="1" value="55">
+      </div>
+
+      <div class="ctl">
+        <label for="sLean">เอนเข้าโค้ง <output id="oLean"></output></label>
+        <input type="range" id="sLean" data-k="lean" data-pose="1" min="-45" max="45" step="1" value="0">
+        <div class="ends"><span>← Heelside (ส้นเท้า)</span><span>Toeside (ปลายเท้า) →</span></div>
+      </div>
+      <div class="ctl">
+        <label for="sAng">Angulation (ดันเข่า/สะโพก) <output id="oAng"></output></label>
+        <input type="range" id="sAng" data-ovr="1" data-k="ang" data-pose="1" min="0" max="25" step="1" value="0">
+      </div>
+      <div class="ctl">
+        <label for="sKnee">งอเข่า (แรงกดบอร์ด) <output id="oKnee"></output></label>
+        <input type="range" id="sKnee" data-ovr="1" data-k="knee" data-pose="1" min="0" max="1" step="0.01" value="0.4">
+      </div>
+      <div class="ctl">
+        <label for="sFore">น้ำหนักหน้า-หลัง <output id="oFore"></output></label>
+        <input type="range" id="sFore" data-ovr="1" data-k="fore" data-pose="1" min="-1" max="1" step="0.01" value="0">
+        <div class="ends"><span>← ท้ายบอร์ด (S)</span><span>หัวบอร์ด (W) →</span></div>
+        <p class="note" style="margin-top:2px">หน้า: หัวกัดหิมะ เข้าโค้งไวและแคบลง แต่ถ้ามากไปหางเบาจนไถลออก (oversteer) ในหิมะผงหัวจะมุด · ท้าย: หัวเบา sidecut ไม่ทำงาน เลี้ยวไม่เข้า หัวไถลออก (understeer) หมุนหัวง่าย ในหิมะผงหัวลอยดี แต่ถ้าเร็วมากบอร์ดพุ่งหลุดจากใต้ตัว</p>
+      </div>
+      <div class="ctl">
+        <label for="sRot">บิดลำตัวช่วงบน <output id="oRot"></output></label>
+        <input type="range" id="sRot" data-k="rot" data-pose="1" min="-60" max="60" step="1" value="0">
+        <div class="ends"><span>← ไปทาง heel</span><span>ไปทาง toe →</span></div>
+      </div>
+      <div class="ctl">
+        <label for="sHip">ก้นยื่นออก / หักเอว (heelside) <output id="oHip"></output></label>
+        <input type="range" id="sHip" data-ovr="1" data-k="hip" data-pose="1" min="0" max="1" step="0.01" value="0">
+        <div class="ends"><span>สะโพกอยู่เหนือ edge</span><span>นั่งเก้าอี้ ก้นยื่นพ้นบอร์ด</span></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="chip" data-preset="carve">Carve ลึก</button>
+        <button class="chip" data-preset="skid">Skid เบรก</button>
+        <button class="chip" data-preset="neutral">ยืนตรง</button>
+        <button class="chip" id="bOvrClear" hidden>คืนค่าอัตโนมัติ</button>
+        <button class="chip" id="bCatchDemo">ลอง catch edge</button>
+        <button class="chip" data-preset="slowlean">ช้าแต่เอนมาก</button>
+        <button class="chip" data-preset="butt">Heelside ก้นยื่น</button>
+      </div>
+      <p class="note">ระหว่างผู้ขี่อัตโนมัติทำงาน ปรับ angulation งอเข่า น้ำหนักหน้า-หลัง และก้นยื่นได้โดยไม่หยุดโหมดอัตโนมัติ (ค่าที่ปักไว้จะมีป้าย "ปักค่าไว้" สีส้ม) ส่วนการเอนและบิดลำตัวใช้เลี้ยว ถ้าลากจะสลับเป็นควบคุมเอง<br>มุมเอนที่ต้องใช้ = atan(v²/(g·R)) ถ้าเอนเกินกว่านี้มากจะล้มเข้าด้านในโค้ง ถ้าน้อยเกินขณะ edge ยึดแน่นจะถูกเหวี่ยงออก งอเข่ามากช่วยให้ทรงตัวได้ช่วงกว้างขึ้น ส่วนการยื่นก้นตอน heelside ทำให้ลง edge ได้น้อย น้ำหนักไปอยู่ท้ายบอร์ด และช่วงทรงตัวแคบลง</p>
+    </section>
+
+    <section>
+      <h2>สภาพลาน</h2>
+      <div class="seg s3" role="group" aria-label="ชนิดหิมะ">
+        <button data-k="snow" data-v="groomed" aria-pressed="true">ลานบดอัด</button>
+        <button data-k="snow" data-v="ice" aria-pressed="false">น้ำแข็ง</button>
+        <button data-k="snow" data-v="powder" aria-pressed="false">หิมะผง</button>
+      </div>
+      <div class="ctl">
+        <label for="sSlope">ความชันลาน <output id="oSlope"></output></label>
+        <input type="range" id="sSlope" data-k="slope" min="5" max="35" step="1" value="14">
+        <div class="ends"><span>เขียว ~8°</span><span>ดำ ~30°</span></div>
+      </div>
+      <div class="switch" style="margin-top:12px">
+        <label for="cCatch">จำลอง catch edge</label>
+        <input type="checkbox" id="cCatch" checked>
+      </div>
+      <p class="note">Catch edge เกิดเมื่อบอร์ดไถลข้างไปทางไหน แล้ว edge ฝั่งนั้น (edge นำ) ถูกกดลงจนจิกหิมะ บอร์ดหยุดกะทันหันแต่ตัวยังพุ่งต่อ Camber เสี่ยงที่สุด Rocker ให้อภัยที่สุดเพราะหัวท้ายยกพ้นหิมะ</p>
+    </section>
+
+    <section>
+      <h2>เล่นด้วยโทรศัพท์</h2>
+      <p class="note" style="margin-top:0">ถือโทรศัพท์แนวนอน หน้าจอหันหาตัว · <b>เอียงแบบหมุนพวงมาลัย</b> = เอนตัว heel/toe · <b>ก้มหน้าจอ/เงยหน้าจอ</b> = น้ำหนักหัว/ท้ายบอร์ด · <b>หมุนตัวโทรศัพท์ซ้าย-ขวา</b> = บิดลำตัว · <b>นิ้วโป้งซ้ายลากบนแถบ</b> = งอเข่า</p>
+      <div class="row" style="margin-top:10px"><button class="chip" id="bGyro2">เปิดโหมดโทรศัพท์</button></div>
+      <div class="checks" style="margin-top:10px">
+        <label><input type="checkbox" id="gAutoKnee" checked>งอเข่าอัตโนมัติตามมุมเอน</label>
+        <label><input type="checkbox" id="gInvLean">กลับทิศการเอน</label>
+        <label><input type="checkbox" id="gInvFore">กลับทิศหัว/ท้าย</label>
+        <label><input type="checkbox" id="gYaw" checked>หมุนโทรศัพท์ = บิดลำตัว</label>
+      </div>
+      <p class="note">ต้องเปิดไฟล์นี้จากเว็บ HTTPS ของตัวเอง หน้า artifact ของ Claude บล็อกเซนเซอร์การเคลื่อนไหว iPhone จะถามสิทธิ์ครั้งแรกที่กดปุ่ม</p>
+    </section>
+
+    <section>
+      <h2>การแสดงผล</h2>
+      <div class="checks">
+        <label><input type="checkbox" data-show="forces" checked>เส้นแรง</label>
+        <label><input type="checkbox" data-show="tracks" checked>รอยบนหิมะ</label>
+        <label><input type="checkbox" data-show="spray" checked>หิมะกระจาย</label>
+        <label><input type="checkbox" data-show="profile" checked>แผงมุมมองบอร์ด</label>
+        <label><input type="checkbox" data-show="exag" checked>ขยายความโค้งบอร์ด ×4</label>
+        <label><input type="checkbox" data-show="hud" checked>ตัวเลขสด</label>
+        <label><input type="checkbox" data-show="scenery" checked>หลักลาน</label>
+        <label><input type="checkbox" data-show="shadow" checked>เงา</label>
+      </div>
+      <p class="note">รอยบาง = carve (edge ตัดเป็นร่อง) · รอยกว้าง = slide (บอร์ดไถลข้าง)<br>คีย์ลัด: <kbd>Space</kbd> หยุด/เล่น · <kbd>R</kbd> เริ่มใหม่ · <kbd>A</kbd>/<kbd>D</kbd> เอนตัว heel/toe · <kbd>W</kbd>/<kbd>S</kbd> โน้มน้ำหนักไปหัว/ท้ายบอร์ด</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+const sgn=v=>v>0?1:v<0?-1:0;
+
+/* ---------- model parameters ---------- */
+const PROFILES={
+  camber:{name:'CAMBER',cb:.70,cp:.30,hold:1.0,pivot:.62,flex:.25,catchy:1,float:1,color:'#1D5BD8',
+    desc:'โค้งขึ้นตรงกลาง ปลายสองข้างแตะหิมะ เมื่อกดหรือวางบน edge บอร์ดจะแนบเต็มความยาว จับ edge แน่นที่สุดและ carve ได้คม แต่ให้อภัยน้อยเมื่อลงน้ำหนักผิด'},
+  rocker:{name:'ROCKER',cb:.50,cp:.10,hold:.72,pivot:1.35,flex:.08,catchy:.35,float:.55,color:'#D9650B',
+    desc:'ตรงกลางแตะหิมะ ปลายยกขึ้น edge ที่ทำงานสั้น หมุนบอร์ดง่ายมากและไถลง่าย ลอยดีในหิมะผง แต่บนลานแข็งความเร็วสูงจะหลุดเป็น slide เร็ว'},
+  flat:{name:'FLAT',cb:.80,cp:.12,hold:.86,pivot:.95,flex:.12,catchy:.85,float:.85,color:'#24907F',
+    desc:'ฐานแบนตลอดความยาว สมดุลระหว่างการจับ edge กับการหมุน รู้สึกนิ่ง คาดเดาง่าย'},
+  hybrid:{name:'HYBRID',cb:.74,cp:.20,hold:.92,pivot:.85,flex:.18,catchy:.6,float:.7,color:'#B8366A',
+    desc:'Camber ใต้ binding และ rocker ที่หัวท้าย จับ edge ใต้เท้าได้ดี แต่หัวท้ายไม่จิก เลี้ยวเข้าง่ายกว่า camber เต็ม'}
+};
+const SNOW={groomed:{glide:.035,grip:1.0,drag:0,catchy:1},ice:{glide:.02,grip:.55,drag:0,catchy:1.15},powder:{glide:.06,grip:.78,drag:.004,catchy:.6}};
+const STYLES={
+  carve:{lean:38,ang:14,knee:.42,kneeAmp:.3,rot:6,fore:.08,hip:0,rate:3.2},
+  skid:{lean:14,ang:3,knee:.5,kneeAmp:.1,rot:48,fore:.3,hip:.1,rate:4},
+  beginner:{lean:16,ang:2,knee:.3,kneeAmp:.05,rot:40,fore:-.15,hip:.6,rate:6},
+  mixed:{lean:26,ang:8,knee:.45,kneeAmp:.2,rot:22,fore:.15,hip:0,rate:3.5}
+};
+
+const P={profile:'camber',sidecut:7.8,lean:0,ang:0,knee:.4,fore:0,rot:0,slope:14,snow:'groomed',
+  auto:true,style:'carve',catchOn:true,hip:0,width:55,slow:false,paused:false,cam:'chase',
+  show:{forces:true,tracks:true,spray:true,profile:true,exag:true,hud:true,scenery:true,shadow:true}};
+
+const S={x:0,z:0,vx:0,vz:5,th:0,om:0,E:0,Ev:0,vf:0,vl:0,al:0,aMax:1,use:0,useS:0,slip:0,state:'carve',Rc:7,contact:.8,press:.6,dist:0,mode:'carve',catchM:0,catchT:0,catchSide:1,fallV:0,fallVz:0,fallAxis:'x',ndM:0,loadN:.5,rN:0,rT:0,catches:0,risk:0,balM:0,balE:0,balTol:14,falls:0,fallKind:'catch'};
+let autoDir=1;
+
+/* ---------- board shape ---------- */
+const HALF=0.78, THICK=0.014, NB=72, KEDGE=0.85;
+function halfW(u){const a=Math.abs(u),w0=.124,wt=.146;if(a<=KEDGE)return w0+(wt-w0)*(a/KEDGE)**2;const t=(a-KEDGE)/(1-KEDGE);return wt*Math.sqrt(Math.max(0,1-t*t))}
+function prof(u,type,flex){
+  const a=Math.min(Math.abs(u),KEDGE);
+  if(type==='camber')return .009*(1-(a/KEDGE)**2)*(1-.85*flex);
+  if(type==='rocker')return .010*(a/KEDGE)**2;
+  if(type==='hybrid')return a<.42 ? .006*(1-(a/.42)**2)*(1-.85*flex) : .012*((a-.42)/(KEDGE-.42))**2;
+  return 0;
+}
+function tip(u){const a=Math.abs(u);return a>KEDGE?.065*((a-KEDGE)/(1-KEDGE))**2:0}
+
+/* ---------- three.js scene ---------- */
+const stage=$('stage'),canvas=$('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xcddcea);scene.fog=new THREE.Fog(0xcddcea,40,120);
+const camera=new THREE.PerspectiveCamera(48,1,.05,400);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=.12;controls.minDistance=1.2;controls.maxDistance=45;
+scene.add(new THREE.HemisphereLight(0xeef6ff,0x8796a6,.8));
+const sun=new THREE.DirectionalLight(0xfff4e6,.85);
+sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera,{left:-5,right:5,top:5,bottom:-5,near:1,far:40});sun.shadow.bias=-.0006;
+scene.add(sun,sun.target);
+
+const slope=new THREE.Group();scene.add(slope);
+
+function snowTex(){
+  const c=document.createElement('canvas');c.width=c.height=256;const g=c.getContext('2d');
+  g.fillStyle='#f2f6f9';g.fillRect(0,0,256,256);
+  for(let i=0;i<2600;i++){const v=215+Math.random()*40|0;g.fillStyle=`rgba(${v-14},${v-5},${v},${Math.random()*.45})`;g.fillRect(Math.random()*256,Math.random()*256,1+Math.random()*2,1+Math.random()*2)}
+  g.strokeStyle='rgba(110,140,170,.16)';g.lineWidth=2;g.strokeRect(0,0,256,256);
+  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(30,30);t.anisotropy=4;t.encoding=THREE.sRGBEncoding;return t;
+}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({map:snowTex(),roughness:.95}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;slope.add(ground);
+
+/* scenery: wraps around rider on a 120 m tile */
+const WRAP=120,TREES=0,POLES=28;
+const tb=[],pb=[];
+for(let i=0;i<TREES;i++)tb.push([(Math.random()-.5)*WRAP,(Math.random()-.5)*WRAP,.8+Math.random()*.9]);
+for(let i=0;i<POLES;i++)pb.push([(Math.random()-.5)*WRAP,(Math.random()-.5)*WRAP]);
+const cones=new THREE.InstancedMesh(new THREE.ConeGeometry(1.1,3.4,7),new THREE.MeshStandardMaterial({color:0x2c5646,roughness:.9,flatShading:true}),TREES);
+const trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.15,.2,.9,6),new THREE.MeshStandardMaterial({color:0x5b4636}),TREES);
+const poles=new THREE.InstancedMesh(new THREE.CylinderGeometry(.03,.03,1.7,6),new THREE.MeshStandardMaterial({color:0xe2690c}),POLES);
+slope.add(poles);
+const dummy=new THREE.Object3D();
+const wrapd=d=>(((d%WRAP)+WRAP*1.5)%WRAP)-WRAP/2;
+function updateScenery(){
+  for(let i=0;i<TREES;i++){const[x,z,s]=tb[i];const px=S.x+wrapd(x-S.x),pz=S.z+wrapd(z-S.z);
+    const near=Math.hypot(px-S.x,pz-S.z)<4?0.0001:1;
+    dummy.position.set(px,.9*s+1.7*s,pz);dummy.rotation.set(0,0,0);dummy.scale.setScalar(s*near);dummy.updateMatrix();cones.setMatrixAt(i,dummy.matrix);
+    dummy.position.set(px,.45*s,pz);dummy.updateMatrix();trunks.setMatrixAt(i,dummy.matrix)}
+  for(let i=0;i<POLES;i++){const[x,z]=pb[i];const px=S.x+wrapd(x-S.x),pz=S.z+wrapd(z-S.z);
+    const near=Math.hypot(px-S.x,pz-S.z)<2?0.0001:1;
+    dummy.position.set(px,.85,pz);dummy.scale.setScalar(near);dummy.updateMatrix();poles.setMatrixAt(i,dummy.matrix)}
+  cones.instanceMatrix.needsUpdate=trunks.instanceMatrix.needsUpdate=poles.instanceMatrix.needsUpdate=true;
+}
+
+/* tracks */
+const TRAIL=1600;
+const trail=new THREE.InstancedMesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.8,depthWrite:false}),TRAIL);
+trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);trail.frustumCulled=false;
+const cCarve=new THREE.Color(0x5d7896),cSkid=new THREE.Color(0xb9c8d6),cGlide=new THREE.Color(0xd3dde6);
+dummy.scale.set(0,0,0);dummy.updateMatrix();
+for(let i=0;i<TRAIL;i++){trail.setMatrixAt(i,dummy.matrix);trail.setColorAt(i,cGlide)}
+slope.add(trail);
+let trailIdx=0,markAcc=0;
+function addMark(x,z,yaw,len,w,col){
+  dummy.position.set(x,.004,z);dummy.rotation.set(0,yaw,0);dummy.scale.set(w,1,len);dummy.updateMatrix();
+  trail.setMatrixAt(trailIdx,dummy.matrix);trail.setColorAt(trailIdx,col);trailIdx=(trailIdx+1)%TRAIL;
+  trail.instanceMatrix.needsUpdate=true;trail.instanceColor.needsUpdate=true;
+}
+function clearTrail(){dummy.scale.set(0,0,0);dummy.rotation.set(0,0,0);dummy.updateMatrix();for(let i=0;i<TRAIL;i++)trail.setMatrixAt(i,dummy.matrix);trail.instanceMatrix.needsUpdate=true}
+
+/* spray */
+const SPRAY=700,sp=new Float32Array(SPRAY*3),sv=new Float32Array(SPRAY*3),sl=new Float32Array(SPRAY);
+for(let i=0;i<SPRAY;i++)sp[i*3+1]=-100;
+const sprGeo=new THREE.BufferGeometry();sprGeo.setAttribute('position',new THREE.BufferAttribute(sp,3));
+const spray=new THREE.Points(sprGeo,new THREE.PointsMaterial({color:0xffffff,size:.065,transparent:true,opacity:.92,depthWrite:false}));
+spray.frustumCulled=false;slope.add(spray);let sprIdx=0;
+function emit(x,y,z,vx,vy,vz){const i=sprIdx;sprIdx=(sprIdx+1)%SPRAY;sp[i*3]=x;sp[i*3+1]=y;sp[i*3+2]=z;sv[i*3]=vx;sv[i*3+1]=vy;sv[i*3+2]=vz;sl[i]=.6+Math.random()*.5}
+function updateSpray(dt){
+  const a=rad(P.slope),gy=-9.81*Math.cos(a),gz=9.81*Math.sin(a);
+  for(let i=0;i<SPRAY;i++){if(sl[i]<=0)continue;sl[i]-=dt;
+    const k=i*3;sv[k]*=.985;sv[k+2]*=.985;sv[k+1]+=gy*dt*.6;sv[k+2]+=gz*dt*.3;
+    sp[k]+=sv[k]*dt;sp[k+1]+=sv[k+1]*dt;sp[k+2]+=sv[k+2]*dt;
+    if(sp[k+1]<0||sl[i]<=0){sl[i]=0;sp[k+1]=-100}}
+  sprGeo.attributes.position.needsUpdate=true;
+}
+
+/* board */
+function strip(){const g=new THREE.BufferGeometry();const pos=new Float32Array((NB+1)*6),uv=new Float32Array((NB+1)*4);
+  for(let i=0;i<=NB;i++)uv.set([i/NB,0,i/NB,1],i*4);
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));return g}
+function idx(g,up){const ix=[];for(let i=0;i<NB;i++){const a=i*2,b=a+1,c=a+2,d=a+3;up?ix.push(a,b,c,b,d,c):ix.push(a,c,b,b,c,d)}g.setIndex(ix)}
+const gTop=strip(),gBot=strip(),gL=strip(),gR=strip();idx(gTop,1);idx(gBot,0);idx(gL,0);idx(gR,1);
+const tsCanvas=document.createElement('canvas');tsCanvas.width=1024;tsCanvas.height=128;
+const tsTex=new THREE.CanvasTexture(tsCanvas);tsTex.encoding=THREE.sRGBEncoding;tsTex.anisotropy=4;
+function drawTopsheet(){
+  const g=tsCanvas.getContext('2d'),pr=PROFILES[P.profile];
+  g.fillStyle='#17212c';g.fillRect(0,0,1024,128);
+  g.fillStyle=pr.color;for(let x=-200;x<1100;x+=56){g.beginPath();g.moveTo(x,128);g.lineTo(x+22,128);g.lineTo(x+122,0);g.lineTo(x+100,0);g.fill()}
+  g.fillStyle='#17212c';g.fillRect(330,30,364,68);
+  g.fillStyle='#ffffff';g.font='700 54px "Chakra Petch", sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(pr.name,512,66);
+  tsTex.needsUpdate=true;
+}
+const boardGroup=new THREE.Group();boardGroup.rotation.order='YXZ';slope.add(boardGroup);
+const mTop=new THREE.Mesh(gTop,new THREE.MeshStandardMaterial({map:tsTex,roughness:.45,metalness:.05,side:THREE.DoubleSide}));
+const mBot=new THREE.Mesh(gBot,new THREE.MeshStandardMaterial({color:0x0e1216,roughness:.35,side:THREE.DoubleSide}));
+const steel=new THREE.MeshStandardMaterial({color:0x9aa6b2,roughness:.3,metalness:.8,side:THREE.DoubleSide});
+const mL=new THREE.Mesh(gL,steel),mR=new THREE.Mesh(gR,steel);
+[mTop,mBot,mL,mR].forEach(m=>{m.castShadow=true;boardGroup.add(m)});
+const bindMat=new THREE.MeshStandardMaterial({color:0x232a31,roughness:.6});
+const bindF=new THREE.Mesh(new THREE.BoxGeometry(.13,.05,.27),bindMat),bindB=bindF.clone();
+bindF.castShadow=bindB.castShadow=true;boardGroup.add(bindF,bindB);
+const yTop=(u,ex,fl)=>prof(u,P.profile,fl)*ex+tip(u)+THICK;
+function updateBoard(ex,fl){
+  const t=gTop.attributes.position.array,b=gBot.attributes.position.array,l=gL.attributes.position.array,r=gR.attributes.position.array;
+  for(let i=0;i<=NB;i++){const u=-1+2*i/NB,x=u*HALF,w=halfW(u),y=prof(u,P.profile,fl)*ex+tip(u),k=i*6;
+    t.set([x,y+THICK,-w,x,y+THICK,w],k);b.set([x,y,-w,x,y,w],k);l.set([x,y+THICK,-w,x,y,-w],k);r.set([x,y+THICK,w,x,y,w],k)}
+  [gTop,gBot,gL,gR].forEach(g=>{g.attributes.position.needsUpdate=true;g.computeVertexNormals();g.computeBoundingSphere()});
+  const yb=yTop(.333,ex,fl);bindF.position.set(.26,yb+.025,0);bindB.position.set(-.26,yb+.025,0);
+}
+
+/* rider skeleton */
+const rider=new THREE.Group();boardGroup.add(rider);
+const cyl=new THREE.CylinderGeometry(1,1,1,10),sph=new THREE.SphereGeometry(1,14,10);
+const mJacket=new THREE.MeshStandardMaterial({color:0xC8432E,roughness:.7}),mPants=new THREE.MeshStandardMaterial({color:0x2a3440,roughness:.8}),
+  mJoint=new THREE.MeshStandardMaterial({color:0xe9eef2,roughness:.5}),mHelmet=new THREE.MeshStandardMaterial({color:0xf3f5f7,roughness:.35}),mBoot=new THREE.MeshStandardMaterial({color:0x111418,roughness:.7});
+const mk=(geo,mat)=>{const m=new THREE.Mesh(geo,mat);m.castShadow=true;rider.add(m);return m};
+const BONES=[['ankF','kneeF',.055,mPants],['ankB','kneeB',.055,mPants],['kneeF','hipF',.07,mPants],['kneeB','hipB',.07,mPants],['hipF','hipB',.085,mPants],
+  ['pelvis','chest',.13,mJacket],['chest','neck',.05,mJacket],['shF','shB',.07,mJacket],['shF','elF',.05,mJacket],['shB','elB',.05,mJacket],['elF','handF',.042,mJacket],['elB','handB',.042,mJacket]]
+  .map(([a,b,r,m])=>({a,b,r,m:mk(cyl,m)}));
+const JOINTS=[['kneeF',.06,mJoint],['kneeB',.06,mJoint],['hipF',.08,mPants],['hipB',.08,mPants],['shF',.07,mJacket],['shB',.07,mJacket],['elF',.05,mJoint],['elB',.05,mJoint],['handF',.05,mBoot],['handB',.05,mBoot],['head',.115,mHelmet]]
+  .map(([j,r,m])=>({j,r,m:mk(sph,m)}));
+const bootF=mk(new THREE.BoxGeometry(.12,.12,.3),mBoot),bootB=mk(new THREE.BoxGeometry(.12,.12,.3),mBoot);
+const UP=new THREE.Vector3(0,1,0),V=(x,y,z)=>new THREE.Vector3(x,y,z),tmp=new THREE.Vector3();
+function ik(A,H,len,poleX){
+  const d=H.clone().sub(A);let dist=d.length();const n=d.divideScalar(dist);dist=Math.min(dist,len*2*.999);
+  const p=V(poleX,0,1);p.addScaledVector(n,-p.dot(n)).normalize();
+  const t=dist/2,h=Math.sqrt(Math.max(0,len*len-t*t));return A.clone().addScaledVector(n,t).addScaledVector(p,h);
+}
+function pose(ex,fl){
+  const hf=hipFactor(),k=P.knee*(1-.5*hf),fa=P.fore-.4*hf,r=rad(P.rot),J={};
+  const ay=yTop(.333,ex,fl)+.07;
+  J.ankF=V(.26,ay,0);J.ankB=V(-.26,ay,0);
+  // angulation: legs follow the board's edge angle, hips/knees drive toward the inside of the turn,
+  // upper body counter-tilts toward the outside so it stays more upright than the legs
+  const as=angSigned()*(1-.8*hf);
+  const hy=ay+.87-.36*k-.1*hf-Math.abs(as)*.003,hx=fa*.17,hz=-.04-.16*k-.3*hf+as*.005;
+  J.hipF=V(hx+.1,hy,hz);J.hipB=V(hx-.1,hy,hz);J.pelvis=V(hx,hy,hz);
+  J.kneeF=ik(J.ankF,J.hipF,.46,.3);J.kneeB=ik(J.ankB,J.hipB,.46,-.3);
+  const tilt=rad(8+26*k+48*hf),sd=V(fa*.14,Math.cos(tilt),Math.sin(tilt)).normalize();
+  J.chest=J.pelvis.clone().addScaledVector(sd,.46);J.neck=J.chest.clone().addScaledVector(sd,.1);J.head=J.neck.clone().addScaledVector(sd,.14);
+  const ax=V(Math.cos(r),0,Math.sin(r)),fc=V(-Math.sin(r),0,Math.cos(r));
+  const lift=clamp(Math.abs(P.lean)/45,0,1)*.08;
+  J.shF=J.chest.clone().addScaledVector(ax,.19);J.shB=J.chest.clone().addScaledVector(ax,-.19);
+  J.elF=J.shF.clone().addScaledVector(ax,.13).add(V(0,-.22+lift,0)).addScaledVector(fc,.08);
+  J.elB=J.shB.clone().addScaledVector(ax,-.13).add(V(0,-.22+lift,0)).addScaledVector(fc,.08);
+  J.handF=J.elF.clone().addScaledVector(ax,.12).add(V(0,-.17+lift,0)).addScaledVector(fc,.15);
+  J.handB=J.elB.clone().addScaledVector(ax,-.12).add(V(0,-.17+lift,0)).addScaledVector(fc,.15);
+  if(as){const q=new THREE.Quaternion().setFromAxisAngle(V(1,0,0),-rad(as)*1.8);
+    // inside hand reaches a little toward the snow on deep angulation
+    for(const n of ['chest','neck','head','shF','shB','elF','elB','handF','handB'])J[n].sub(J.pelvis).applyQuaternion(q).add(J.pelvis);
+    for(const h of ['handF','handB']){J[h].z+=as*.004;J[h].y-=Math.abs(as)*.003}}
+  for(const b of BONES){const A=J[b.a],B=J[b.b];tmp.subVectors(B,A);const L=tmp.length();
+    b.m.position.copy(A).addScaledVector(tmp,.5);b.m.scale.set(b.r,L,b.r);b.m.quaternion.setFromUnitVectors(UP,tmp.normalize())}
+  for(const j of JOINTS){j.m.position.copy(J[j.j]);j.m.scale.setScalar(j.r)}
+  bootF.position.set(.26,ay-.01,.0);bootB.position.set(-.26,ay-.01,0);
+}
+
+/* force arrows */
+const arrV=new THREE.ArrowHelper(V(0,0,1),V(),1,0x1D5BD8,.2,.12),arrF=new THREE.ArrowHelper(V(1,0,0),V(),1,0xD9650B,.2,.12),arrG=new THREE.ArrowHelper(V(0,0,1),V(),1,0x7E8C98,.16,.1);
+slope.add(arrV,arrF,arrG);
+
+/* ---------- physics: semi-physical edge model ---------- */
+function step(dt){
+  const pr=PROFILES[P.profile],sn=SNOW[P.snow],g=9.81,a=rad(P.slope),N=g*Math.cos(a);
+  const hf=hipFactor();
+  const Edeg=clamp((P.lean+angSigned()*(1-.8*hf))*(1-.35*hf),-70,70);S.E=Edeg;
+  const Er=rad(Edeg),aE=Math.abs(Er);
+  const press=.35+.65*P.knee;S.press=press;
+  const contact=(pr.cb+pr.cp*press)*(1-.35*Math.abs(clamp(P.fore-.5*hf,-1,1)))*(1-.4*hf);S.contact=contact;
+  const e=smooth(rad(2),rad(12),aE);S.engage=e;
+  const fw=Math.max(0,P.fore),bk=Math.max(0,-P.fore);
+  // weight split nose/tail: butt-out also pushes weight to the tail
+  const loadN=clamp(.5+.45*(P.fore-.5*hf),.05,.95),loadT=1-loadN;S.loadN=loadN;
+  // nose pressure bends the front of the board -> slightly tighter arc
+  const Rc=P.sidecut*Math.cos(aE)*(1-pr.flex*press*.5)*(1-.15*fw);S.Rc=Rc;
+  const mu=Math.min(sn.grip*pr.hold*contact*(.12+2.2*Math.sin(aE)),2.0);
+  const aMax=Math.max(.05,mu*N);S.aMax=aMax;
+  const f={x:Math.sin(S.th),z:Math.cos(S.th)},l={x:-Math.cos(S.th),z:Math.sin(S.th)};
+  let vf=S.vx*f.x+S.vz*f.z,vl=S.vx*l.x+S.vz*l.z;
+  const Gz=g*Math.sin(a),Gf=Gz*f.z,Gl=Gz*l.z;
+  // lateral: edge tries to cancel sideways velocity, capped by grip
+  // lateral grip is split between nose and tail by load; whichever end saturates first slides out
+  const need=-vl/dt-Gl,capN=aMax*loadN,capT=aMax*loadT;
+  const al=clamp(need/2,-capN,capN)+clamp(need/2,-capT,capT);
+  const rN=clamp(Math.abs(need/2)/capN-1,0,1.5),rT=clamp(Math.abs(need/2)/capT-1,0,1.5);
+  S.rN+=(rN-S.rN)*.05;S.rT+=(rT-S.rT)*.05;
+  S.use=Math.min(1.2,Math.abs(need)/aMax);S.al=al;
+  // longitudinal: gravity, base friction, air drag, edge-cutting drag
+  const af=Gf-(vf/(Math.abs(vf)+.3))*(sn.glide*N+.08*Math.abs(al))-(.0065+sn.drag*pr.float*(1+1.5*fw)*(1-.6*bk))*vf*Math.abs(vf);
+  vf+=af*dt;vl+=(Gl+al)*dt;
+  // yaw: sidecut arc + pivot from upper-body rotation
+  // nose must be loaded for the sidecut to bite: back seat = understeer
+  const bite=(.3+.7*smooth(.12,.45,loadN))*(1+.25*fw);
+  const turn=-sgn(Er)*e*vf/Rc*bite;
+  // pivot: light nose swings easily (back seat), light tail sweeps out (forward)
+  const piv=-rad(P.rot)*pr.pivot*2.2*(1-.6*e*pr.hold)*(1+.4*fw+.8*bk);
+  // tail sliding out = board yaws further into the turn (oversteer); nose sliding = yaws out (understeer)
+  const over=-sgn(need)*(rT-rN)*.9*smooth(1,4,Math.abs(vf));
+  S.om+=(turn+piv+over-S.om)*Math.min(1,8*dt);
+  S.vx=vf*f.x+vl*l.x;S.vz=vf*f.z+vl*l.z;
+  S.th+=S.om*dt;
+  S.x+=S.vx*dt;S.z+=S.vz*dt;S.vf=vf;S.vl=vl;
+  S.slip=deg(Math.atan2(vl,Math.max(.1,Math.abs(vf))));
+  S.dist+=Math.hypot(S.vx,S.vz)*dt;
+}
+/* catch edge: leading edge (the side the board is sliding toward) is lowered and digs in */
+function catchRisk(dt){
+  if(!P.catchOn){S.catchM=0;S.risk=0;return}
+  const pr=PROFILES[P.profile],sn=SNOW[P.snow];
+  const spd=Math.hypot(S.vx,S.vz),avl=Math.abs(S.vl),aE=Math.abs(S.E);
+  let et=0;
+  if(aE<1.5)et=.45;                                  // flat base: tip/tail can hook
+  else if(sgn(S.E)===sgn(S.vl))et=smooth(2,8,aE);    // leading edge lowered
+  let r=pr.catchy*sn.catchy*et*smooth(.8,2.6,avl)*smooth(1.5,5,spd);
+  if(P.auto&&P.style!=='beginner')r*=.2;             // skilled auto rider
+  S.risk=r;
+  S.catchM=Math.max(0,S.catchM+(r*7-3)*dt);
+  if(S.catchM>=1)triggerCatch();
+}
+// angulation fades in with lean instead of flipping sign at 0°, so edge changes stay continuous
+const angSigned=()=>P.ang*sgn(P.lean)*smooth(0,12,Math.abs(P.lean));
+const hipFactor=()=>P.hip*smooth(2,10,-P.lean);
+/* balance: body lean vs lean the turn actually needs, atan(v·ω / g) */
+function balance(dt){
+  const gN=9.81*Math.cos(rad(P.slope)),spd=Math.hypot(S.vx,S.vz),hf=hipFactor();
+  const req=deg(Math.atan(-spd*S.om/gN));
+  const lb=P.lean-hf*22;                         // butt out moves the centre of mass further heelside
+  const e=(lb-req)*(sgn(lb)||1);S.balE=e;S.balReq=req;
+  const tol=(12+6*P.knee)*(1-.4*hf)*(1-.35*clamp(-P.fore-.3,0,1))*(1-.2*clamp(P.fore-.5,0,1));S.balTol=tol;
+  let over=0,kind='';
+  if(Math.abs(lb)>5&&e>tol){over=(e-tol)/12;kind=hf>.35?'butt':'inward'}
+  else if(e<-(tol+12)&&S.state==='carve'){over=(-e-tol-12)/16;kind='outward'}
+  const bkR=smooth(.55,.95,-P.fore)*smooth(5,10,spd);
+  if(bkR>0&&bkR*1.6>over){over=bkR*1.6;kind='backseat'}
+  if(P.auto&&P.style!=='beginner')over*=.3;
+  S.balM=Math.max(0,S.balM+(over-.5)*dt);
+  if(S.balM>=1)triggerFall(kind,kind==='outward'?-(sgn(lb)||1):kind==='backseat'?-1:(sgn(lb)||1));
+}
+/* powder: too much weight on the nose makes it dive */
+function noseDive(dt){
+  if(P.snow!=='powder'){S.ndM=0;return}
+  const pr=PROFILES[P.profile],spd=Math.hypot(S.vx,S.vz);
+  let r=smooth(.3,.8,P.fore)*smooth(3,8,spd)*pr.float;
+  if(P.auto&&P.style!=='beginner')r*=.3;
+  S.ndM=Math.max(0,S.ndM+(r*2.2-.6)*dt);
+  if(S.ndM>=1){S.ndM=0;triggerFall('nose',1)}
+}
+function triggerFall(kind,side){
+  S.catchT=2.1;S.catchSide=side;S.balM=0;S.catchM=0;S.falls++;S.fallKind=kind;S.om=0;
+  S.fallAxis=(kind==='nose'||kind==='backseat')?'z':'x';if(kind==='nose'){S.vx*=.4;S.vz*=.4}
+  S.vx*=.55;S.vz*=.55;S.vl=0;
+  if(P.show.spray)for(let i=0;i<50;i++)emit(S.x+(Math.random()-.5),.05,S.z+(Math.random()-.5),(Math.random()-.5)*3,1+Math.random()*2,(Math.random()-.5)*3+S.vz*.4);
+}
+function triggerCatch(){
+  const side=sgn(S.vl)||1;
+  S.catchT=1.9;S.catchSide=side;S.catchM=0;S.balM=0;S.catches++;S.falls++;S.fallKind='catch';S.fallAxis='x';S.E=side*14;S.om=0;
+  const f={x:Math.sin(S.th),z:Math.cos(S.th)},l={x:-Math.cos(S.th),z:Math.sin(S.th)};
+  const vf=(S.vx*f.x+S.vz*f.z)*.3;S.vx=vf*f.x;S.vz=vf*f.z;S.vl=0;
+  addMark(S.x+l.x*side*.15,S.z+l.z*side*.15,S.th,1.4,.12,cCarve);
+  if(P.show.spray)for(let i=0;i<110;i++){const t=(Math.random()-.5)*1.4;
+    emit(S.x+l.x*side*.15+f.x*t,.05,S.z+l.z*side*.15+f.z*t,l.x*side*(1+Math.random()*3),1.5+Math.random()*3,l.z*side*(1+Math.random()*3))}
+}
+function catchStep(dt){
+  const d=Math.exp(-2.5*dt);S.vx*=d;S.vz*=d;S.x+=S.vx*dt;S.z+=S.vz*dt;S.catchT-=dt;
+  if(S.catchT<=0){S.catchT=0;if(!P.auto){P.lean=0;P.ang=0;P.rot=0;P.hip=0;syncSliders()}}
+}
+function classify(){
+  if(S.catchT>0)return'catch';
+  const spd=Math.hypot(S.vx,S.vz);
+  S.useS+=(S.use-S.useS)*.12;
+  if(spd<.8)return'stop';
+  if(S.engage<.25&&Math.abs(S.slip)<6)return'glide';
+  if(Math.abs(S.slip)<5&&S.useS<.97)return'carve';
+  return'skid';
+}
+
+/* auto rider */
+function autoRide(dt){
+  const st=STYLES[P.style],th=deg(S.th);
+  if(autoDir*th>P.width*.9)autoDir=-autoDir;
+  if(Math.abs(th)>140)autoDir=-sgn(th);
+  const k=Math.min(1,dt*st.rate);
+  const tLean=-autoDir*st.lean,tRot=-autoDir*st.rot;
+  // ang / knee / fore / hip: the viewer can pin any of these while the auto rider keeps steering
+  const O=OVR,pick=(key,v)=>O[key]!=null?O[key]:v;
+  P.lean+=(tLean-P.lean)*k;P.rot+=(tRot-P.rot)*k;
+  if(O.ang==null)P.ang+=(st.ang-P.ang)*k;
+  if(O.knee==null)P.knee+=(st.knee+st.kneeAmp*Math.abs(P.lean)/st.lean-P.knee)*k;
+  if(O.fore==null)P.fore+=(st.fore-P.fore)*k;
+  if(O.hip==null)P.hip+=(st.hip-P.hip)*k;
+}
+
+/* ---------- camera ---------- */
+const W=V(),prevW=V(),fW=V(),lW=V(),vW=V();
+let camInit=false;
+function riderWorld(){slope.updateMatrixWorld();W.set(S.x,.85,S.z).applyMatrix4(slope.matrixWorld);
+  fW.set(Math.sin(S.th),0,Math.cos(S.th)).applyQuaternion(slope.quaternion);
+  lW.set(-Math.cos(S.th),0,Math.sin(S.th)).applyQuaternion(slope.quaternion);
+  const sp=Math.hypot(S.vx,S.vz);vW.set(sp>.5?S.vx/sp:fW.x,0,sp>.5?S.vz/sp:fW.z);if(sp>.5)vW.applyQuaternion(slope.quaternion)}
+function setCam(mode){
+  riderWorld();
+  if(mode==='side'){camera.position.copy(W).addScaledVector(lW,6.5).add(V(0,1.2,0))}
+  else if(mode==='front'){camera.position.copy(W).addScaledVector(vW,6).add(V(0,1.6,0))}
+  else if(mode==='top'){camera.position.copy(W).add(V(0,9,0)).addScaledVector(vW,-.6)}
+  else if(mode==='chase'){camera.position.copy(W).addScaledVector(vW,-5.5).add(V(0,2.4,0))}
+  controls.target.copy(W);prevW.copy(W);
+  P.cam=(mode==='chase')?'chase':'follow';
+  document.querySelectorAll('[data-cam]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.cam===mode)));
+}
+controls.addEventListener('start',()=>{if(P.cam==='chase'){P.cam='follow';document.querySelectorAll('[data-cam]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.cam==='follow')))}});
+function updateCam(dt){
+  riderWorld();
+  if(!camInit){setCam('chase');camInit=true}
+  if(P.cam==='chase'){const want=W.clone().addScaledVector(vW,-5.5).add(V(0,2.4,0));camera.position.lerp(want,1-Math.exp(-3*dt));controls.target.copy(W)}
+  else{tmp.subVectors(W,prevW);camera.position.add(tmp);controls.target.add(tmp)}
+  prevW.copy(W);controls.update();
+  sun.position.copy(W).add(V(5,12,3));sun.target.position.copy(W);
+}
+
+/* ---------- profile panel (2D) ---------- */
+const pc=$('pc'),pctx=pc.getContext('2d');let C={};
+function readTokens(){const cs=getComputedStyle(document.documentElement);['--fg','--muted','--line','--accent','--skid','--sunk'].forEach(k=>C[k]=cs.getPropertyValue(k).trim())}
+readTokens();
+try{matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readTokens)}catch(e){}
+new MutationObserver(readTokens).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function drawProfile(){
+  const dpr=Math.min(window.devicePixelRatio||1,2),w=pc.clientWidth,h=pc.clientHeight;if(!w)return;
+  if(pc.width!==Math.round(w*dpr)){pc.width=Math.round(w*dpr);pc.height=Math.round(h*dpr)}
+  const g=pctx;g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const fl=S.press,pad=10,L=w-pad*2,cx=w/2,sc=L/(2*HALF);
+  g.font='500 10.5px "IBM Plex Sans Thai", sans-serif';g.fillStyle=C['--muted'];g.textBaseline='top';
+  g.fillText('ด้านข้าง · ส่วนโค้ง camber/rocker ขยาย ×8',pad,0);
+  // side view: profile curve exaggerated, tip/tail kick near true scale
+  const base=h*.36,k1=sc*8,k2=sc*1.15;
+  const yb=(u,f)=>base-(prof(u,P.profile,f)*k1+tip(u)*k2);
+  const X=u=>cx+u*HALF*sc;
+  g.fillStyle=C['--sunk'];g.fillRect(pad-4,base,L+8,6);
+  g.strokeStyle=C['--line'];g.lineWidth=1;g.beginPath();g.moveTo(pad-4,base+.5);g.lineTo(w-pad+4,base+.5);g.stroke();
+  // unloaded shape (dashed) for comparison
+  g.setLineDash([3,3]);g.strokeStyle=C['--muted'];g.lineWidth=1;g.beginPath();
+  for(let i=0;i<=120;i++){const u=-1+i/60;i?g.lineTo(X(u),yb(u,0)-1):g.moveTo(X(u),yb(u,0)-1)}
+  g.stroke();g.setLineDash([]);
+  // contact zone on the snow line
+  g.lineCap='round';g.lineWidth=3;g.strokeStyle=C['--accent'];g.beginPath();let on=false;
+  for(let i=0;i<=120;i++){const u=-1+i/60;
+    if(prof(u,P.profile,fl)<.0016&&Math.abs(u)<=KEDGE){if(!on){g.moveTo(X(u),base+2.5);on=true}else g.lineTo(X(u),base+2.5)}else on=false}
+  g.stroke();
+  // board under current pressure
+  g.lineJoin='round';g.strokeStyle=C['--fg'];g.lineWidth=4;g.beginPath();
+  for(let i=0;i<=120;i++){const u=-1+i/60;i?g.lineTo(X(u),yb(u,fl)-2):g.moveTo(X(u),yb(u,fl)-2)}
+  g.stroke();g.lineCap='butt';
+  // bindings + nose/tail labels
+  g.fillStyle=C['--muted'];[-.333,.333].forEach(u=>g.fillRect(X(u)-6,yb(u,fl)-12,12,7));
+  g.font='500 10px "IBM Plex Sans Thai", sans-serif';g.textBaseline='top';
+  g.fillText('หาง',pad,base+8);g.textAlign='right';g.fillText('หัว',w-pad,base+8);g.textAlign='left';
+  g.font='500 10.5px "IBM Plex Sans Thai", sans-serif';
+  // weight arrow
+  const wx=cx+P.fore*.4*HALF*sc;g.strokeStyle=C['--skid'];g.fillStyle=C['--skid'];g.lineWidth=2;
+  g.beginPath();g.moveTo(wx,base-38);g.lineTo(wx,base-20);g.stroke();g.beginPath();g.moveTo(wx-4,base-24);g.lineTo(wx+4,base-24);g.lineTo(wx,base-17);g.fill();
+  g.fillStyle=C['--muted'];g.textAlign='right';g.fillText('หัว '+Math.round(S.loadN*100)+'% · ท้าย '+Math.round((1-S.loadN)*100)+'%',w-pad,0);g.textAlign='left';
+  // plan view
+  const top=h*.5;g.fillStyle=C['--muted'];g.fillText('ด้านบน · sidecut และรัศมีโค้งปัจจุบัน',pad,top);
+  const my=top+h*.3,ws=sc*1.6;
+  const side=S.E>=0?1:-1; // toe edge drawn at bottom
+  g.fillStyle=C['--sunk'];g.strokeStyle=C['--fg'];g.lineWidth=1.2;g.beginPath();
+  for(let i=0;i<=120;i++){const u=-1+i/60;g.lineTo(cx+u*HALF*sc,my-halfW(u)*ws)}
+  for(let i=120;i>=0;i--){const u=-1+i/60;g.lineTo(cx+u*HALF*sc,my+halfW(u)*ws)}
+  g.closePath();g.fill();g.stroke();
+  // active edge length
+  const span=Math.min(1,S.contact)*KEDGE,sh=-P.fore*.12;
+  g.strokeStyle=S.state==='skid'?C['--skid']:C['--accent'];g.lineWidth=3.5;g.beginPath();
+  for(let i=0;i<=40;i++){const u=clamp(sh-span+i*span/20,-KEDGE,KEDGE);const y=my+side*halfW(u)*ws;i?g.lineTo(cx+u*HALF*sc,y):g.moveTo(cx+u*HALF*sc,y)}
+  if(S.engage>.2)g.stroke();
+  // radius arc
+  if(S.engage>.2){const R=S.Rc*sc,cyA=my+side*(halfW(0)*ws+R);g.strokeStyle=C['--muted'];g.setLineDash([3,4]);g.lineWidth=1;
+    g.beginPath();const ang=Math.asin(Math.min(1,(L/2+20)/R));
+    side>0?g.arc(cx,cyA,R,-Math.PI/2-ang,-Math.PI/2+ang):g.arc(cx,cyA,R,Math.PI/2-ang,Math.PI/2+ang);g.stroke();g.setLineDash([])}
+  g.fillStyle=C['--fg'];g.font='500 11px "IBM Plex Mono", monospace';g.textBaseline='bottom';
+  g.fillText(S.engage>.2?`R ${S.Rc.toFixed(1)} m · edge ${Math.round(S.contact*100)}%`:'ฐานแบน · ยังไม่ลง edge',pad,h-1);
+}
+
+/* ---------- UI ---------- */
+const fmt={sidecut:v=>v.toFixed(1)+' m',width:v=>Math.round(v)+'°',lean:v=>(v>0?'+':'')+Math.round(v)+'°',ang:v=>Math.round(v)+'°',
+  knee:v=>Math.round(v*100)+'%',fore:v=>(v>0?'+':'')+Math.round(v*100)+'%',rot:v=>(v>0?'+':'')+Math.round(v)+'°',hip:v=>Math.round(v*100)+'%',slope:v=>Math.round(v)+'°'};
+const ranges=[...document.querySelectorAll('input[type=range][data-k]')];
+const outs={};ranges.forEach(el=>{outs[el.dataset.k]=$('o'+el.id.slice(1))});
+const OVR={ang:null,knee:null,fore:null,hip:null};
+function markOvr(){let any=false;for(const key in OVR){const on=OVR[key]!=null&&P.auto;any=any||on;const lb=document.querySelector('label[for="s'+key[0].toUpperCase()+key.slice(1)+'"]');if(lb)lb.classList.toggle('pinned',on)}$('bOvrClear').hidden=!any}
+function syncSliders(){ranges.forEach(el=>{const k=el.dataset.k;if(document.activeElement!==el)el.value=P[k];outs[k].textContent=fmt[k](P[k])})}
+ranges.forEach(el=>el.addEventListener('input',()=>{const key=el.dataset.k;P[key]=+el.value;
+  if(el.dataset.pose&&P.auto){if(el.dataset.ovr){OVR[key]=+el.value;markOvr()}else setAuto(false)}
+  syncSliders()}));
+function setAuto(v){P.auto=v;$('cAuto').checked=v;if(!v)for(const key in OVR)OVR[key]=null;markOvr()}
+$('cAuto').addEventListener('change',e=>{P.auto=e.target.checked});
+$('selStyle').addEventListener('change',e=>{P.style=e.target.value;setAuto(true)});
+$('bOvrClear').addEventListener('click',()=>{for(const key in OVR)OVR[key]=null;markOvr()});
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.k;P[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));
+  if(k==='profile')profileChanged();if(k==='slope')slope.rotation.x=rad(P.slope)}));
+function profileChanged(){const pr=PROFILES[P.profile];$('profDesc').textContent=pr.desc;drawTopsheet();
+  $('tHold').style.width=pr.hold*100+'%';$('tPivot').style.width=Math.min(100,pr.pivot/1.4*100)+'%';$('tContact').style.width=Math.min(100,(pr.cb+pr.cp*.6)*100)+'%';$('tCatch').style.width=pr.catchy*100+'%'}
+const PRESETS={carve:{lean:36,ang:15,knee:.65,fore:.05,rot:5,hip:0},skid:{lean:-12,ang:2,knee:.55,fore:.2,rot:-50,hip:0},neutral:{lean:0,ang:0,knee:.25,fore:0,rot:0,hip:0},
+  slowlean:{lean:42,ang:0,knee:.2,fore:0,rot:0,hip:0,_v:3},butt:{lean:-26,ang:4,knee:.2,fore:-.2,rot:0,hip:.85,_v:4}};
+document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{setAuto(false);const pr=PRESETS[b.dataset.preset];
+  for(const key in pr)if(key[0]!=='_')P[key]=pr[key];
+  if(pr._v){S.catchT=0;S.balM=0;S.catchM=0;S.om=0;S.th=0;S.vx=0;S.vz=pr._v}   // demo: start at a set speed, pointing downhill
+  syncSliders()}));
+document.querySelectorAll('[data-show]').forEach(c=>c.addEventListener('change',()=>{P.show[c.dataset.show]=c.checked;applyShow()}));
+function applyShow(){const s=P.show;
+  arrV.visible=arrF.visible=arrG.visible=s.forces;$('legend').hidden=!s.forces;trail.visible=s.tracks;spray.visible=s.spray;
+  $('profPanel').hidden=!s.profile;$('hud').hidden=!s.hud;cones.visible=trunks.visible=poles.visible=s.scenery;
+  renderer.shadowMap.enabled=s.shadow;sun.castShadow=s.shadow;scene.traverse(o=>{if(o.material)o.material.needsUpdate=true})}
+document.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>setCam(b.dataset.cam)));
+function setPaused(v){P.paused=v;$('bPause').setAttribute('aria-pressed',String(v));$('bPause').textContent=v?'เล่นต่อ':'หยุด'}
+$('bPause').addEventListener('click',()=>setPaused(!P.paused));
+$('bSlow').addEventListener('click',()=>{P.slow=!P.slow;$('bSlow').setAttribute('aria-pressed',String(P.slow))});
+function reset(){Object.assign(S,{x:0,z:0,vx:0,vz:5,th:0,om:0,dist:0,useS:0,catchT:0,catchM:0,fallV:0,fallVz:0,balM:0,ndM:0});autoDir=1;clearTrail();for(let i=0;i<SPRAY;i++){sl[i]=0;sp[i*3+1]=-100}camInit=false}
+$('bReset').addEventListener('click',reset);
+$('cCatch').addEventListener('change',e=>{P.catchOn=e.target.checked;$('riskWrap').hidden=!P.catchOn});
+// demo: board across the fall line, side-slipping downhill with the downhill (toe) edge lowered
+$('bCatchDemo').addEventListener('click',()=>{setAuto(false);P.catchOn=true;$('cCatch').checked=true;$('riskWrap').hidden=false;
+  Object.assign(P,{lean:7,ang:0,knee:.3,fore:0,rot:0});S.catchT=0;S.catchM=0;S.om=0;S.th=Math.PI/2;S.vx=4;S.vz=3.5;syncSliders()});
+const keys={};
+addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox'||e.target.tagName==='SELECT')return;
+  if(e.code==='Space'){e.preventDefault();setPaused(!P.paused)}else if(e.code==='KeyR')reset();else keys[e.code]=true});
+addEventListener('keyup',e=>{keys[e.code]=false});
+
+/* ---------- phone / gyro ---------- */
+const G={on:false,got:false,roll:0,pitch:0,yaw:0,r0:0,p0:0,y0:0,cal:true,kneeTouch:null};
+function toast(msg){$('toastMsg').textContent=msg;$('toast').hidden=false}
+$('toastOk').addEventListener('click',()=>{$('toast').hidden=true});
+const D2R=Math.PI/180;
+function onOri(e){
+  if(e.alpha==null&&e.beta==null&&e.gamma==null)return;
+  G.got=true;
+  const a=(e.alpha||0)*D2R,b=(e.beta||0)*D2R,g=(e.gamma||0)*D2R;
+  const cA=Math.cos(a),sA=Math.sin(a),cB=Math.cos(b),sB=Math.sin(b),cG=Math.cos(g),sG=Math.sin(g);
+  // device -> world rotation (W3C: R = Rz(alpha) Rx(beta) Ry(gamma))
+  const M=[[cA*cG-sA*sB*sG,-cB*sA,cG*sA*sB+cA*sG],[cG*sA+cA*sB*sG,cA*cB,sA*sG-cA*cG*sB],[-cB*sG,sB,cB*cG]];
+  const mul=v=>[M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]];
+  const sa=((screen.orientation&&screen.orientation.angle)||window.orientation||0)*D2R;
+  const X=mul([Math.cos(sa),-Math.sin(sa),0]);   // screen right
+  const Z=mul([0,0,1]);                          // screen normal
+  const roll=Math.asin(clamp(-X[2],-1,1)),pitch=Math.asin(clamp(Z[2],-1,1)),yaw=Math.atan2(X[1],X[0]);
+  if(G.cal){G.r0=roll;G.p0=pitch;G.y0=yaw;G.cal=false;G.roll=roll;G.pitch=pitch;G.yaw=yaw}
+  const k=.3;G.roll+=(roll-G.roll)*k;G.pitch+=(pitch-G.pitch)*k;
+  let dy=yaw-G.yaw;dy=Math.atan2(Math.sin(dy),Math.cos(dy));G.yaw+=dy*k;
+}
+const dz=(v,d)=>Math.abs(v)<d?0:v-Math.sign(v)*d;
+function applyGyro(dt){
+  if(!G.got)return;
+  const inv=id=>$(id).checked?-1:1;
+  const rl=deg(G.roll-G.r0),pt=deg(G.pitch-G.p0);let yw=deg(Math.atan2(Math.sin(G.yaw-G.y0),Math.cos(G.yaw-G.y0)));
+  P.lean=clamp(dz(rl,3)*1.25*inv('gInvLean'),-45,45);
+  P.fore=clamp(dz(pt,4)/22*inv('gInvFore'),-1,1);
+  P.rot=$('gYaw').checked?clamp(dz(yw,5)*1.3,-60,60):0;
+  const tgt=G.kneeTouch!=null?G.kneeTouch:($('gAutoKnee').checked?.3+.5*Math.abs(P.lean)/45:.35);
+  P.knee+=(tgt-P.knee)*Math.min(1,dt*(G.kneeTouch!=null?14:4));
+  drawKneeThumb();
+}
+function drawKneeThumb(){const st=$('kneeStrip'),h=st.clientHeight;if(!h)return;
+  $('kneeThumb').style.top=(6+P.knee*(h-60))+'px';st.setAttribute('aria-valuenow',Math.round(P.knee*100))}
+const kStrip=$('kneeStrip');
+function kneeFromEvent(e){const r=kStrip.getBoundingClientRect();G.kneeTouch=clamp((e.clientY-r.top-30)/(r.height-60),0,1)}
+kStrip.addEventListener('pointerdown',e=>{kStrip.setPointerCapture(e.pointerId);kneeFromEvent(e);e.preventDefault()});
+kStrip.addEventListener('pointermove',e=>{if(G.kneeTouch!=null)kneeFromEvent(e)});
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>kStrip.addEventListener(t,()=>{G.kneeTouch=null}));
+async function enableGyro(){
+  if(typeof DeviceOrientationEvent==='undefined'){toast('อุปกรณ์หรือเบราว์เซอร์นี้ไม่มีเซนเซอร์ gyro ลองเปิดบนโทรศัพท์ครับ');return}
+  if(typeof DeviceOrientationEvent.requestPermission==='function'){
+    try{const r=await DeviceOrientationEvent.requestPermission();if(r!=='granted'){toast('ยังไม่ได้รับสิทธิ์ใช้ motion sensor กดปุ่มอีกครั้งแล้วเลือก "อนุญาต"');return}}
+    catch(err){toast('เปิด gyro ไม่ได้ในหน้านี้ ถ้ากำลังเปิดในหน้า artifact ของ Claude ให้เปิดไฟล์จากเว็บ HTTPS ของตัวเองแทน');return}
+  }
+  try{const el=document.documentElement,fn=el.requestFullscreen||el.webkitRequestFullscreen;if(fn){const pr=fn.call(el);if(pr&&pr.catch)pr.catch(()=>{})}}catch(e){}
+  G.got=false;G.cal=true;addEventListener('deviceorientation',onOri);
+  setTimeout(()=>{if(!G.got){removeEventListener('deviceorientation',onOri);
+    toast('ไม่ได้รับข้อมูลจาก gyro อาจเพราะเปิดบนคอมพิวเตอร์ หรือเปิดในหน้า artifact ของ Claude ที่บล็อกเซนเซอร์ ให้เปิดไฟล์บนโทรศัพท์จากเว็บ HTTPS ของตัวเอง')}
+    else startPlay()},900);
+}
+function startPlay(){
+  G.on=true;setAuto(false);document.body.classList.add('play');
+  P.ang=Math.max(P.ang,8);syncSliders();
+  try{screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape').catch(()=>{})}catch(e){}
+  if(!(screen.orientation&&String(screen.orientation.type).startsWith('landscape'))&&innerHeight>innerWidth)toast('หมุนโทรศัพท์เป็นแนวนอน แล้วกด "ตั้งศูนย์" ในท่าที่ถือสบาย');
+  if(Math.hypot(S.vx,S.vz)<1)reset();
+}
+function stopPlay(){G.on=false;removeEventListener('deviceorientation',onOri);document.body.classList.remove('play');
+  try{document.fullscreenElement&&document.exitFullscreen()}catch(e){}}
+$('bGyro').addEventListener('click',enableGyro);$('bGyro2').addEventListener('click',enableGyro);
+$('bCal').addEventListener('click',()=>{G.cal=true});
+$('bExit').addEventListener('click',stopPlay);
+
+/* ---------- loop ---------- */
+const ro=new ResizeObserver(()=>{const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()});
+ro.observe(stage);
+slope.rotation.x=rad(P.slope);
+profileChanged();syncSliders();applyShow();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawTopsheet);
+
+let last=performance.now(),hudT=0,sliderT=0;
+const stateTxt={carve:['Carving','edge ตัดเป็นร่องบาง'],skid:['Sliding','บอร์ดไถลข้าง เสียความเร็ว'],glide:['Flat base','ร่อนบนฐาน ยังไม่ลง edge'],stop:['หยุดนิ่ง','กดเริ่มใหม่ หรือเอนลงเนิน'],catch:['Catch edge!','']};
+const fallTxt={catch:'Catch edge!',inward:'ล้มเข้าโค้ง',outward:'ถูกเหวี่ยงออก',butt:'ก้นจมหิมะ',nose:'หัวบอร์ดมุดหิมะ',backseat:'บอร์ดพุ่งหลุด'};
+function frame(now){
+  requestAnimationFrame(frame);
+  let dt=Math.min(.05,(now-last)/1000);last=now;
+  const simDt=dt*(P.slow?.25:1);
+  let keyed=false;
+  if(G.on){applyGyro(dt);if(sliderT>.12){sliderT=0;syncSliders()}}
+  if(keys.KeyA||keys.KeyD){setAuto(false);P.lean=clamp(P.lean+(keys.KeyD?60:-60)*dt,-45,45);keyed=true}
+  if(keys.KeyW||keys.KeyS){P.fore=clamp(P.fore+(keys.KeyW?1.6:-1.6)*dt,-1,1);if(P.auto){OVR.fore=P.fore;markOvr()}keyed=true}   // W = toward nose, S = toward tail
+  if(keyed)syncSliders();
+  if(!P.paused){
+    const n=Math.max(1,Math.ceil(simDt/(1/240)));
+    if(S.catchT>0){for(let i=0;i<n;i++)catchStep(simDt/n)}
+    else{if(P.auto)autoRide(simDt);for(let i=0;i<n;i++){step(simDt/n);catchRisk(simDt/n);if(S.catchT>0)break;balance(simDt/n);noseDive(simDt/n);if(S.catchT>0)break}}
+    S.state=classify();
+    // tracks
+    const spd=Math.hypot(S.vx,S.vz);markAcc+=spd*simDt;
+    if(markAcc>.28&&spd>.5){markAcc=0;
+      const side=sgn(S.E),lx=-Math.cos(S.th),lz=Math.sin(S.th),yaw=Math.atan2(S.vx,S.vz);
+      if(S.state==='carve')addMark(S.x+lx*side*.13,S.z+lz*side*.13,yaw,.34,.035,cCarve);
+      else if(S.state==='skid')addMark(S.x+lx*side*.08,S.z+lz*side*.08,yaw,.34,clamp(.25+Math.abs(Math.sin(rad(S.slip)))*1.5,.25,1.5),cSkid);
+      else addMark(S.x,S.z,yaw,.34,.27,cGlide)}
+    // spray
+    if(P.show.spray&&spd>1.5){const side=sgn(S.E)||1,lx=-Math.cos(S.th),lz=Math.sin(S.th),fx=Math.sin(S.th),fz=Math.cos(S.th);
+      const rate=S.state==='skid'?Math.min(14,Math.abs(S.vl)*3+4):S.state==='carve'?S.useS*spd*.35:0;
+      const out=-sgn(S.al)||-side;
+      for(let i=0;i<rate*(P.slow?.5:1);i++){const t=(Math.random()-.5)*1.1;
+        emit(S.x+lx*side*.14+fx*t,.05,S.z+lz*side*.14+fz*t,lx*out*(1+Math.random()*2.5)+S.vx*.5,1+Math.random()*2.2,lz*out*(1+Math.random()*2.5)+S.vz*.5)}}
+    updateSpray(simDt);
+  }
+  // board & rider visuals
+  const ex=P.show.exag?4:1,fl=S.press;
+  S.Ev+=(S.E-S.Ev)*Math.min(1,dt*12);
+  updateBoard(ex,fl);
+  const Er=rad(S.Ev);
+  boardGroup.position.set(S.x,.124*Math.sin(Math.abs(Er))+.003,S.z);
+  boardGroup.rotation.y=S.th-Math.PI/2;boardGroup.rotation.x=Er;
+  const down=S.catchT>.5,fx=down&&S.fallAxis==='x'?S.catchSide*rad(80):0,fz=down&&S.fallAxis==='z'?-S.catchSide*rad(78):0;
+  S.fallV+=(fx-S.fallV)*Math.min(1,dt*(fx?10:3.5));S.fallVz+=(fz-S.fallVz)*Math.min(1,dt*(fz?9:3.5));
+  rider.rotation.x=S.fallV;rider.rotation.z=S.fallVz;
+  pose(ex,fl);
+  // ground snap + scenery
+  ground.position.set(Math.round(S.x/10)*10,0,Math.round(S.z/10)*10);
+  if(P.show.scenery)updateScenery();
+  // arrows
+  if(P.show.forces){const spd=Math.hypot(S.vx,S.vz),o=V(S.x,.35,S.z);
+    arrV.position.copy(o);if(spd>.1){arrV.setDirection(V(S.vx/spd,0,S.vz/spd));arrV.setLength(.3+spd*.12,.2,.12)}
+    const lx=-Math.cos(S.th),lz=Math.sin(S.th),s=sgn(S.al)||1;arrF.position.copy(o);arrF.setDirection(V(lx*s,0,lz*s));arrF.setLength(.15+Math.abs(S.al)*.09,.2,.12);
+    arrF.setColor(new THREE.Color(S.state==='skid'?0xD9650B:0xE89A4A));
+    arrG.position.set(S.x,.12,S.z);arrG.setLength(.2+9.81*Math.sin(rad(P.slope))*.15,.16,.1)}
+  updateCam(dt);
+  renderer.render(scene,camera);
+  // HUD
+  hudT+=dt;
+  if(hudT>.09){hudT=0;
+    const spd=Math.hypot(S.vx,S.vz),st=$('state');
+    st.dataset.s=S.state;st.firstElementChild.nextElementSibling.firstChild.nodeValue=S.state==='catch'?fallTxt[S.fallKind]:stateTxt[S.state][0];const subFall={catch:(S.catchSide>0?'Toe edge':'Heel edge')+' จิกหิมะ',inward:'ช้าเกินไปสำหรับมุมเอนนี้',outward:'edge ยึดแน่นแต่เอนตัวไม่พอ',butt:'สะโพกพ้น edge น้ำหนักลงก้น',nose:'น้ำหนักหน้ามากในหิมะผง',backseat:'นั่งท้ายมากที่ความเร็วสูง'};
+    let sub=stateTxt[S.state][1];
+    if(S.state==='skid'){if(S.rT>S.rN+.15)sub='หางบอร์ดไถลออก (oversteer)';else if(S.rN>S.rT+.15)sub='หัวบอร์ดไถลออก เลี้ยวไม่เข้า (understeer)'}
+    $('stateSub').textContent=S.state==='catch'?subFall[S.fallKind]+' · ล้มครั้งที่ '+S.falls:sub;
+    const be=S.balE||0;$('hBal').textContent=(be>0?'+':'')+be.toFixed(0)+'° · เสี่ยง '+Math.round(Math.min(1,S.balM)*100)+'%';
+    const gpos=v=>50+clamp(v/60,-1,1)*50;$('gMark').style.left=gpos(be)+'%';$('gMark').style.background=Math.abs(be)>S.balTol?'var(--danger)':'var(--fg)';
+    $('gTol').style.left=gpos(-S.balTol-12)+'%';$('gTol').style.width=(gpos(S.balTol)-gpos(-S.balTol-12))+'%';
+    const rk=Math.min(1,S.catchM);$('hRisk').textContent=Math.round(rk*100)+'%';$('riskBar').style.width=rk*100+'%';
+    $('hSpeed').firstChild.nodeValue=(spd*3.6).toFixed(0);$('hEdge').firstChild.nodeValue=Math.abs(S.E).toFixed(0);
+    const rTrue=Math.abs(S.om)>.03?spd/Math.abs(S.om):Infinity;$('hRad').firstChild.nodeValue=rTrue<200?rTrue.toFixed(1):'∞';
+    $('hSlip').firstChild.nodeValue=Math.abs(S.slip).toFixed(0);
+    $('hIdeal').firstChild.nodeValue=rTrue<200?deg(Math.atan(spd*spd/(9.81*rTrue))).toFixed(0):'0';
+    $('hLean').firstChild.nodeValue=Math.abs(P.lean).toFixed(0);
+    const u=Math.min(1,S.useS);$('hGrip').textContent=Math.round(u*100)+'%';const gb=$('gripBar');gb.style.width=u*100+'%';gb.style.background=u>.96?'var(--skid)':'var(--accent)';
+    if(P.show.profile)drawProfile();
+  }
+  sliderT+=dt;if(P.auto&&sliderT>.12){sliderT=0;syncSliders()}
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body></html>
